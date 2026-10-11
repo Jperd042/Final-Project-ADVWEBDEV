@@ -24,7 +24,7 @@ function AuthForm({ register }) {
 
   async function submit(event) {
     event.preventDefault()
-    if (register && values.name.trim().length < 2) return setError('Enter a name with at least 2 characters.')
+    if (register && values.name.trim().length < 2) return setError('Enter a username with at least 2 characters.')
     if (register && values.password !== values.confirm) return setError('Passwords do not match.')
     setBusy(true)
     setError('')
@@ -35,7 +35,7 @@ function AuthForm({ register }) {
     } catch (failure) { setError(errorMessage(failure)) } finally { setBusy(false) }
   }
 
-  return <><div className="auth-heading"><h1>{register ? 'Create your account' : 'Welcome back'}</h1><p>{register ? 'Enter your information.' : 'Sign in to your account.'}</p></div><form onSubmit={submit}><ErrorNotice message={error} /><fieldset disabled={busy} className="auth-fields">{register && <Field label="Full name" name="name" autoComplete="name" minLength={2} maxLength={80} required value={values.name} onChange={update} />}
+  return <><div className="auth-heading"><h1>{register ? 'Create your account' : 'Welcome back'}</h1><p>{register ? 'Enter your information.' : 'Sign in to your account.'}</p></div><form onSubmit={submit}><ErrorNotice message={error} /><fieldset disabled={busy} className="auth-fields">{register && <Field label="Username" name="name" autoComplete="nickname" minLength={2} maxLength={80} required value={values.name} onChange={update} />}
     <Field label="Email address" type="email" name="email" autoComplete="email" required maxLength={254} value={values.email} onChange={update} />
     <Field label="Password">{(id) => <div className="password-field"><input id={id} className="form-control" type={visible ? 'text' : 'password'} name="password" autoComplete={register ? 'new-password' : 'current-password'} minLength={register ? 8 : undefined} maxLength={72} required value={values.password} onChange={update} /><IconButton icon={visible ? EyeOff : Eye} label={visible ? 'Hide password' : 'Show password'} onClick={() => setVisible((value) => !value)} /></div>}</Field>
     {register && <Field label="Confirm password" type="password" name="confirm" autoComplete="new-password" minLength={8} maxLength={72} required value={values.confirm} onChange={update} />}

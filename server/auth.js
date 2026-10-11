@@ -1,8 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const { rateLimit } = require('express-rate-limit');
-const { User } = require('./models');
+const { User, Product } = require('./models');
 const schemas = require('./validation');
 
 const router = express.Router();
@@ -63,17 +64,33 @@ router.post('/logout', async (req, res) => {
 
 router.patch('/profile', authLimiter, async (req, res) => {
   const data = schemas.profile.parse(req.body);
-  const changes = { name: data.name, email: data.email };
+  const changes = { name: data.name };
   if (data.password) {
     const current = await User.findById(req.user._id).select('+password');
-    if (!(await bcrypt.compare(data.currentPassword, current.password))) return res.status(401).json({ message: 'Current password is incorrect.' });
+    if (!current || !(await bcrypt.compare(data.currentPassword, current.password))) return res.status(401).json({ message: 'Current password is incorrect.' });
     changes.password = await bcrypt.hash(data.password, 12);
   }
   const update = { $set: changes };
   if (data.password) update.$inc = { tokenVersion: 1 };
   const user = await User.findByIdAndUpdate(req.user._id, update, { new: true, runValidators: true }).select('+tokenVersion');
+  if (!user) return res.status(401).json({ code: 'UNAUTHENTICATED', message: 'Please sign in again.' });
   if (data.password) setSession(res, user);
   res.json({ user: publicUser(user) });
+});
+
+router.delete('/account', authLimiter, async (req, res) => {
+  const data = schemas.deleteAccount.parse(req.body);
+  const current = await User.findById(req.user._id).select('+password');
+  if (!current || !(await bcrypt.compare(data.currentPassword, current.password))) return res.status(401).json({ message: 'Current password is incorrect.' });
+  const deleted = await mongoose.connection.transaction(async session => {
+    const result = await User.deleteOne({ _id: req.user._id, password: current.password, tokenVersion: req.user.tokenVersion }, { session });
+    if (!result.deletedCount) return false;
+    await Product.deleteMany({ owner: req.user._id }, { session });
+    return true;
+  });
+  if (!deleted) return res.status(409).json({ message: 'Your account changed. Sign in again before deleting it.' });
+  res.clearCookie('stockroom_session', cookieOptions);
+  res.json({ message: 'Account permanently deleted.' });
 });
 
 module.exports = { router, authenticate };

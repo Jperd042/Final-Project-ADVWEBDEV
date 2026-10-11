@@ -1,6 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const { Product } = require('./models');
+const { User, Product } = require('./models');
 const schemas = require('./validation');
 const { authenticate } = require('./auth');
 
@@ -54,7 +54,13 @@ router.get('/products', async (req, res) => {
 router.post('/products', async (req, res) => {
   const data = schemas.productCreate.parse(req.body);
   const movements = data.quantity ? [{ productName: data.name, sku: data.sku, type: 'opening', quantity: data.quantity, balance: data.quantity, note: 'Opening stock' }] : [];
-  const product = await Product.create({ ...data, owner: req.user._id, movements });
+  const product = await mongoose.connection.transaction(async session => {
+    const owner = await User.updateOne({ _id: req.user._id, tokenVersion: req.user.tokenVersion }, { $inc: { __v: 1 } }, { session });
+    if (!owner.matchedCount) return null;
+    const [created] = await Product.create([{ ...data, owner: req.user._id, movements }], { session });
+    return created;
+  });
+  if (!product) return res.status(401).json({ code: 'UNAUTHENTICATED', message: 'Please sign in again.' });
   res.status(201).json({ product: publicProduct(product) });
 });
 
