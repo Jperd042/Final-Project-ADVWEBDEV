@@ -16,8 +16,9 @@ const productFields = {
 module.exports = {
   register: z.strictObject({ name, email, password }),
   login: z.strictObject({ email, password: z.string().min(1).max(200) }),
-  profile: z.strictObject({ name, email, currentPassword: z.string().max(200).optional(), password: password.optional() })
+  profile: z.strictObject({ name, currentPassword: z.string().max(200).optional(), password: password.optional() })
     .refine(value => !value.password || Boolean(value.currentPassword), 'Current password is required to set a new password.'),
+  deleteAccount: z.strictObject({ currentPassword: z.string().min(1).max(200), confirmation: z.literal('DELETE') }),
   productCreate: z.strictObject({ ...productFields, quantity: count }),
   productUpdate: z.strictObject(productFields),
   stock: z.strictObject({ type: z.enum(['in', 'out']), quantity: count.min(1), note: z.string().trim().max(250).default('') }),

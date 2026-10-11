@@ -179,6 +179,7 @@ main:focus { outline: none; }
 .avatar-large { width: 57px; height: 57px; font-size: 23px; }
 .profile-identity > div { min-width: 0; }
 .profile-identity h2 { font-size: 17px; }
+.profile-identity h2, .profile-identity p { overflow-wrap: anywhere; }
 .profile-identity p { margin: 5px 0; color: #728076; font-size: 12px; }
 .profile-identity div > span { font-size: 10px; color: #8d978f; }
 .settings-section { padding: 27px 0; border-bottom: 1px solid var(--border); }
@@ -186,6 +187,10 @@ main:focus { outline: none; }
 .settings-heading h2 { color: #405247; font-size: 14px; }
 .settings-footer { padding-top: 22px; display: flex; justify-content: flex-end; }
 .password-settings { margin-top: 22px; }
+.account-deletion { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.account-deletion > div { flex: 1 1 280px; }
+.account-deletion h2 { font-size: 14px; color: #a44037; }
+.account-deletion p { margin: 7px 0 0; font-size: 12px; color: var(--muted); }
 .auth-page { min-height: 100dvh; background: #fafcfb; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 38px 24px 24px; border-top: 4px solid var(--ink); }
 .auth-container { width: 100%; max-width: 365px; margin: auto 0; padding: 25px 0 40px; }
 .auth-container .brand { margin-bottom: 32px; padding-bottom: 28px; border-bottom: 1px solid #d8e0da; }
