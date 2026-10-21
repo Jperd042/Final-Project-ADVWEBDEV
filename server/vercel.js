@@ -1,4 +1,9 @@
 const mongoose = require('mongoose');
+
+// Explicit initialization below can retry failures; Model.init() caches rejections.
+mongoose.set('autoCreate', false);
+mongoose.set('autoIndex', false);
+
 const app = require('./app');
 const { User, Product } = require('./models');
 
@@ -6,6 +11,7 @@ const { User, Product } = require('./models');
 app.set('trust proxy', 1);
 
 let pendingConnection;
+let indexesReady = false;
 
 function connectDatabase() {
   if (!pendingConnection) {
@@ -15,7 +21,13 @@ function connectDatabase() {
           serverSelectionTimeoutMS: 10000,
         });
       }
-      await Promise.all([User.init(), Product.init()]);
+      if (!indexesReady) {
+        await Promise.all([User, Product].map(async model => {
+          await model.createCollection();
+          await model.createIndexes();
+        }));
+        indexesReady = true;
+      }
     })().finally(() => {
       pendingConnection = null;
     });

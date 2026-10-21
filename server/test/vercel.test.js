@@ -18,6 +18,8 @@ test('Vercel serves the existing API after database initialization', async (t) =
   // Only the external database boundary is stubbed. Requests use real Express routes.
   let connections = 0;
   let shouldFail = false;
+  let shouldFailIndexes = false;
+  let indexAttempts = 0;
   let releaseConnection;
   t.mock.method(mongoose, 'connect', async () => {
     connections++;
@@ -26,8 +28,14 @@ test('Vercel serves the existing API after database initialization', async (t) =
     mongoose.connection.readyState = 1;
     return mongoose;
   });
-  t.mock.method(User, 'init', async () => User);
-  t.mock.method(Product, 'init', async () => Product);
+  for (const model of [User, Product]) {
+    t.mock.method(model, 'init', async () => model);
+    t.mock.method(model, 'createCollection', async () => model.collection);
+    t.mock.method(model, 'createIndexes', async () => {
+      indexAttempts++;
+      if (shouldFailIndexes) throw new Error('Simulated index creation failure');
+    });
+  }
   const handler = require(entry);
 
   await t.test('returns JSON 503 when configuration is missing', async () => {
@@ -40,7 +48,20 @@ test('Vercel serves the existing API after database initialization', async (t) =
     process.env.JWT_SECRET = secret;
   });
 
+  await t.test('retries collection and index initialization after a transient failure', async () => {
+    mongoose.connection.readyState = 0;
+    shouldFailIndexes = true;
+    try {
+      assert.equal((await request(handler).get('/api/health')).status, 503);
+    } finally {
+      shouldFailIndexes = false;
+    }
+    assert.equal((await request(handler).get('/api/health')).status, 200);
+    assert.ok(indexAttempts >= 3);
+  });
+
   await t.test('concurrent requests share initialization and reach the health route', async () => {
+    const previousConnections = connections;
     mongoose.connection.readyState = 0;
     releaseConnection = {};
     const first = request(handler).get('/api/health').then(r => r);
@@ -50,27 +71,35 @@ test('Vercel serves the existing API after database initialization', async (t) =
     releaseConnection.resolve();
     const responses = await Promise.all([first, second]);
     releaseConnection = null;
-    assert.equal(connections, 1);
+    assert.equal(connections, previousConnections + 1);
     for (const response of responses) {
       assert.equal(response.status, 200);
       assert.deepEqual(response.body, { status: 'ok' });
     }
   });
 
+  await t.test('does not rebuild successful indexes for each request', async () => {
+    const attempts = indexAttempts;
+    assert.equal((await request(handler).get('/api/health')).status, 200);
+    assert.equal(indexAttempts, attempts);
+  });
+
   await t.test('signed-out sessions return the expected JSON 401', async () => {
+    const previousConnections = connections;
     const response = await request(handler).get('/api/auth/me');
     assert.equal(response.status, 401);
     assert.equal(response.body.code, 'UNAUTHENTICATED');
-    assert.equal(connections, 1);
+    assert.equal(connections, previousConnections);
   });
 
   await t.test('retries initialization after a database failure', async () => {
+    const previousConnections = connections;
     mongoose.connection.readyState = 0;
     shouldFail = true;
     assert.equal((await request(handler).get('/api/health')).status, 503);
     shouldFail = false;
     assert.equal((await request(handler).get('/api/health')).status, 200);
-    assert.equal(connections, 3);
+    assert.equal(connections, previousConnections + 2);
   });
 
   await t.test('keeps the existing authentication guard on other API routes', async () => {
