@@ -15,7 +15,6 @@ test('Vercel serves the existing API after database initialization', async (t) =
   process.env.JWT_SECRET = 'test-only-secret-with-at-least-32-characters';
   process.env.CLIENT_ORIGIN = 'https://stockroom.example';
 
-  // Only the external database boundary is stubbed. Requests use real Express routes.
   let connections = 0;
   let shouldFail = false;
   let shouldFailIndexes = false;
