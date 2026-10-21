@@ -1,13 +1,11 @@
 const mongoose = require('mongoose');
 
-// Explicit initialization below can retry failures; Model.init() caches rejections.
 mongoose.set('autoCreate', false);
 mongoose.set('autoIndex', false);
 
 const app = require('./app');
 const { User, Product } = require('./models');
 
-// Vercel forwards requests through its reverse proxy.
 app.set('trust proxy', 1);
 
 let pendingConnection;
